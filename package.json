@@ -1,0 +1,16 @@
+{
+  "name": "elxn40",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "mongoose": "~4.0.3",
+    "async": "^1.0.0",
+    "config": "^1.1.0",
+    "moment": "^2.8.4",
+    "lodash": "^3.10.0",
+    "mongodb": "^2.0.39",
+    "json2csv": "^2.8.2",
+    "twitter" : "^1.2.5",
+    "node-schedule": "^0.2.9"
+  }
+}
