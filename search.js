@@ -1,17 +1,11 @@
 var env         = require('./config/env'),
     MongoClient = require('mongodb').MongoClient,
     https       = require('https');
-
-var elxn42;
-
-// Connection URL
-MongoClient.connect(env.mongo_url, function(err, db) {
-  elxn42 = db.collection("elxn42")
-});
+    _           = require('lodash');
 
 var options = {
     hostname: 'api.twitter.com',
-    path: '/1.1/search/tweets.json?q=elxn42&src=typd',
+    path: '/1.1/search/tweets.json?q=elxn42',
     headers: {
         Authorization: 'Bearer ' + env.bearer_token
     }
@@ -25,18 +19,30 @@ https.get(options, function (result) {
     });
     result.on('end', function () {
         var tweets = JSON.parse(buffer);
-        console.log(tweets.statuses); // the tweets!
 
-        // TODO: Trim tweets to what we want to keep
+        _.forEach(tweets.statuses, function(tweet) {
+            // TODO: Trim tweets to what we want to keep
+            delete tweet.user
+            delete tweet.retweeted_status
+            delete tweet.source
+        })
 
-        // insertTweets(tweets)
-        // db.close()
+        MongoClient.connect(env.mongo_url, function(err, db) {
+          insertTweets(db, tweets.statuses, function() {
+            db.close();
+          });
+        });
+
     });
 });
 
-function insertTweets(tweets){
-  elxn42
-    .insertMany(tweets, function(err, result){
-      if (!err) console.log(tweets.length + " tweets inserted");
+function insertTweets(db, tweets, callback){
+    var elxn42 = db.collection('elxn42');
+
+    elxn42.insertMany(tweets, function(err, result){
+        if (!err) {
+            console.log("15 tweets inserted");
+            callback(result);
+        }
     });
 }
