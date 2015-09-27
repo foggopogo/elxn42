@@ -1,12 +1,12 @@
-var env         = require("./config/twitter"),
+var env         = require('./config/env'),
     MongoClient = require('mongodb').MongoClient,
     https       = require('https');
 
 var elxn42;
 
-MongoClient.connect("mongodb://192.168.59.103:27069/elxn42", function(err, db) {
-    elxn42 = db.collection("elxn42");
-    console.log("Connecting to Local Mixpanel Db");
+// Connection URL
+MongoClient.connect(env.mongo_url, function(err, db) {
+  elxn42 = db.collection("elxn42")
 });
 
 var options = {
@@ -25,13 +25,18 @@ https.get(options, function (result) {
     });
     result.on('end', function () {
         var tweets = JSON.parse(buffer);
-        console.log(tweets.statuses.length); // the tweets!
+        console.log(tweets.statuses); // the tweets!
+
+        // TODO: Trim tweets to what we want to keep
+
+        // insertTweets(tweets)
+        // db.close()
     });
 });
 
-function insertTweetToDb(tweet){
+function insertTweets(tweets){
   elxn42
-    .insert(tweet, function(err, result){
-      if (!err) console.log("Tweet inserted!");
+    .insertMany(tweets, function(err, result){
+      if (!err) console.log(tweets.length + " tweets inserted");
     });
 }
