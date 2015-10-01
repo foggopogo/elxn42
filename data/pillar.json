@@ -1,15 +1,3 @@
-{
-	"ENVIRONMENT" : [
-		{ "Climate Change": "q=Climate%20Change%20elxn42" },
-		{ "Wind Power": "q=Wind%20power%20elxn42" },
-		{ "Solar Power": "q=Solar%20Power%20elxn42" },
-		{ "Pipeline": "q=Pipeline%20elxn42" },
-		{ "Clean Tech": "q=clean%20tech%20elxn42" },
-		{ "Infastructure": "q=Infastructure%20elxn42" },
-		{ "Transit": "q=transit%20elxn42" }
-	],
-	"ECONOMY":[],
-	"CULTURAL": [],
-	"BUREAUCRACY": [],
-	"INTERNATIONAL_ISSUES": []
-}
+[
+	 ["Clean Tech", "q=clean%20tech%20elxn42"]
+]

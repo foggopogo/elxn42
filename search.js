@@ -1,9 +1,13 @@
+/*
+ * Pillars: Environment, Economy, Cultural, Bureaucracy, International Issues
+ */
+
 var env         = require('./config/env'),
     MongoClient = require('mongodb').MongoClient,
     https       = require('https'),
     _           = require('lodash'),
     async       = require('async'),
-    cron        = require('node-schedule'),
+    schedule    = require('node-schedule'),
     pillars     = require('./data/pillar');
 
 var options = {
@@ -13,27 +17,23 @@ var options = {
     }
 };
 
+var subPillarMaxIds = {};
 var elxn42;
-var SEARCH_URL = '/1.1/search/tweets.json?';
+var SEARCH_URL = '/1.1/search/tweets.json?count=100&';
 
-/*
- * - Query Twitter to find out how many requests are left
- * x Create a priorityQueue
- * x Add cron job for every 15 min 
- * - Use max_id to get the latests tweets
- * - 
- */
+var SUBPILLAR = 0;
+var SUBPILLAR_QUERY = 1;
 
-var twitterQueue = async.queue(function(query, maxId, callback){
-     getTweetsAndInsert(query, maxId, callback); 
-}, 2);
+var twitterQueue = async.queue(function(task, callback){
+     getTweetsAndInsert(task.query, callback); 
+}, 1);
 
 async
     .waterfall([
         connectToDB,
         assignCollections,
         startScheduler],
-        function(err, maxid){
+        function(err, result){
             if (err) throw err;
             console.log("DONE!");
 
@@ -49,19 +49,29 @@ function assignCollections(db, callback){
 }
 
 function startScheduler(callback){
-    schedule.scheduleJob('15 * * * *', addToQueue);
+    // schedule.scheduleJob('15 * * * *', addToQueue);
+    addToQueue();
 }
 
 function addToQueue(){
     // TODO: Add function to ask Twitter how many requests we have left (as a check)
-    var numberOfRequests = 400;
-    // TODO: Iterate over pillars 'numberOfRequests' times and add to queue
+    var maxRequests = 400;
+    var numberOfRequests = 0;
+    for (var i = 1; i <= maxRequests; i++){ 
+        twitterQueue.push({ query: pillars[i % 1]}, function(err){
+            if (err) throw err;
+        });
+    }
 }
 
 // TwitterQueue
-function getTweetsAndInsert(query, maxId, callback){
-    var SEARCH_QUERY = SEARCH_URL + query;
-    options.path = (maxId == 0) ? SEARCH_QUERY : SEARCH_QUERY + '&max_id=' + maxId;
+function getTweetsAndInsert(query, callback){
+    var SEARCH_QUERY = SEARCH_URL + query[SUBPILLAR_QUERY];
+    var sub_pillar = query[SUBPILLAR];
+    var maxId = subPillarMaxIds[sub_pillar];
+    options.path = (maxId == undefined) ? SEARCH_QUERY : SEARCH_QUERY + '&max_id=' + maxId;
+    console.log(sub_pillar);
+    
     https.get(options, function (result) {
         var buffer = '';
         result.setEncoding('utf8');
@@ -69,25 +79,35 @@ function getTweetsAndInsert(query, maxId, callback){
             buffer += data;
         });
         result.on('end', function () {
-            var tweets = JSON.parse(buffer);
-
-            _.forEach(tweets.statuses, function(tweet) {
-                // TODO: Trim tweets to what we want to keep
-                delete tweet.user
-                delete tweet.retweeted_status
-                delete tweet.source
-            });
-
-            insertTweets(tweets.statuses, callback);
+            var tweets = JSON.parse(buffer).statuses;
+            if (tweets.length == 1 || tweets.length == 0){
+                console.log("Shit query pal " + tweets.length);
+                return callback(null);
+            }
+            insertTweets(sub_pillar, modifyTweets(tweets, sub_pillar), callback);
         });
     });
 }
 
-function insertTweets(tweets, callback){
+function insertTweets(subpillar, tweets, callback){
     elxn42.insertMany(tweets, function(err, result){
-        if (!err) console.log("15 tweets inserted");
-        callback(err, tweets[99]['id']);
+        if (!err) console.log(tweets.length + " tweets inserted");
+        var numberOfTweets = tweets.length;
+        subPillarMaxIds[subpillar] = tweets[numberOfTweets - 1]['id_str'];
+        callback(err);
     });
+}
+
+function modifyTweets(tweets, sub_pillar){
+    tweets = _.map(tweets, function(tweet) {
+        // TODO: Trim tweets to what we want to keep
+        tweet.sub_pillar = sub_pillar;
+        delete tweet.user
+        delete tweet.retweeted_status;
+        delete tweet.source;
+        return tweet;
+    });   
+    return tweets; 
 }
 
 twitterQueue.drain = function(){
