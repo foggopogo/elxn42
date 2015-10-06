@@ -17,7 +17,11 @@ var options = {
     }
 };
 
-var subPillarMaxIds = {};
+var subPillarSinceIds = {
+    'Trudeau': "649793602319597568",
+    'Harper': "649793682711773185",
+    'Mulcair': "649793177717747712"
+};
 var elxn42;
 var SEARCH_URL = '/1.1/search/tweets.json?count=100&';
 
@@ -55,10 +59,10 @@ function startScheduler(callback){
 
 function addToQueue(){
     // TODO: Add function to ask Twitter how many requests we have left (as a check)
-    var maxRequests = 400;
+    var maxRequests = 200;
     var numberOfRequests = 0;
     for (var i = 1; i <= maxRequests; i++){ 
-        twitterQueue.push({ query: pillars[i % 1]}, function(err){
+        twitterQueue.push({ query: pillars[0]}, function(err){
             if (err) throw err;
         });
     }
@@ -68,7 +72,7 @@ function addToQueue(){
 function getTweetsAndInsert(query, callback){
     var SEARCH_QUERY = SEARCH_URL + query[SUBPILLAR_QUERY];
     var sub_pillar = query[SUBPILLAR];
-    var maxId = subPillarMaxIds[sub_pillar];
+    var maxId = subPillarSinceIds[sub_pillar];
     options.path = (maxId == undefined) ? SEARCH_QUERY : SEARCH_QUERY + '&max_id=' + maxId;
     console.log(sub_pillar);
     
@@ -93,7 +97,7 @@ function insertTweets(subpillar, tweets, callback){
     elxn42.insertMany(tweets, function(err, result){
         if (!err) console.log(tweets.length + " tweets inserted");
         var numberOfTweets = tweets.length;
-        subPillarMaxIds[subpillar] = tweets[numberOfTweets - 1]['id_str'];
+        subPillarSinceIds[subpillar] = tweets[numberOfTweets - 1]['id_str'];
         callback(err);
     });
 }
@@ -112,4 +116,5 @@ function modifyTweets(tweets, sub_pillar){
 
 twitterQueue.drain = function(){
     console.log("Twitter queue is empty");
+    console.log(subPillarSinceIds);
 }
